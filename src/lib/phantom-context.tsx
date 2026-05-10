@@ -31,22 +31,8 @@ export function PhantomProvider({ children }: { children: ReactNode }) {
  * Internally uses Solana Wallet Adapter.
  */
 export function usePhantom() {
-  // useWallet throws if no provider — guarded by PhantomProvider's mounted state.
-  let wallet: ReturnType<typeof useWallet> | null = null;
-  let modal: ReturnType<typeof useWalletModal> | null = null;
-  try {
-    wallet = useWallet();
-    modal = useWalletModal();
-  } catch {
-    return {
-      publicKey: null,
-      connecting: false,
-      installed: false,
-      connect: async () => {},
-      disconnect: async () => {},
-    };
-  }
-
+  const wallet = useWallet();
+  const modal = useWalletModal();
   const publicKey = wallet.publicKey ? wallet.publicKey.toString() : null;
 
   return {
@@ -54,22 +40,22 @@ export function usePhantom() {
     connecting: wallet.connecting,
     installed: !!wallet.wallet,
     connect: async () => {
-      if (!wallet!.wallet) {
-        modal!.setVisible(true);
+      if (!wallet.wallet) {
+        modal.setVisible(true);
         return;
       }
       try {
-        await wallet!.connect();
-      } catch (e) {
+        await wallet.connect();
+      } catch {
         toast.error("Gagal menghubungkan wallet");
       }
     },
     disconnect: async () => {
       try {
-        await wallet!.disconnect();
+        await wallet.disconnect();
         toast.success("Wallet diputus");
       } catch {
-        // ignore
+        /* noop */
       }
     },
   };
