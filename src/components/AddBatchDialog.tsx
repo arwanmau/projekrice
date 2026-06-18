@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBatches } from "@/lib/batches-context";
+import { usePhantom } from "@/lib/phantom-context";
 import { toast } from "sonner";
 
 const schema = z.object({
@@ -38,6 +39,7 @@ const EMPTY = {
 
 export function AddBatchDialog() {
   const { addBatch } = useBatches();
+  const { publicKey, connect, connecting } = usePhantom();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<Record<string, string>>(EMPTY);
@@ -59,10 +61,12 @@ export function AddBatchDialog() {
       setErrors(errs);
       return;
     }
+    const signer = publicKey ?? (await connect());
+    if (!signer) return;
+
     setBusy(true);
-    // Simulate on-chain mint
     await new Promise((r) => setTimeout(r, 700));
-    const b = addBatch(parsed.data);
+    const b = addBatch({ ...parsed.data, signerWallet: signer });
     setBusy(false);
     toast.success(`Batch #${b.id} dicatat on-chain`, { description: b.txHash.slice(0, 26) + "…" });
     setForm(EMPTY);
@@ -111,9 +115,13 @@ export function AddBatchDialog() {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Batal
             </Button>
-            <Button type="submit" disabled={busy} className="gap-2 bg-gradient-primary text-primary-foreground">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sprout className="h-4 w-4" />}
-              {busy ? "Mencatat ke ledger…" : "Daftarkan & Mint"}
+            <Button
+              type="submit"
+              disabled={busy || connecting}
+              className="gap-2 bg-gradient-primary text-primary-foreground"
+            >
+              {busy || connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sprout className="h-4 w-4" />}
+              {busy ? "Mencatat ke Solana…" : connecting ? "Menghubungkan…" : "Daftarkan & Mint"}
             </Button>
           </DialogFooter>
         </form>

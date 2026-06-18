@@ -15,6 +15,8 @@ import { Route as LiveRouteImport } from './routes/live'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiAdminHealthRouteImport } from './routes/api/admin/health'
+import { Route as ApiAdminAnalyticsRouteImport } from './routes/api/admin/analytics'
 
 const ScanRoute = ScanRouteImport.update({
   id: '/scan',
@@ -46,6 +48,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminHealthRoute = ApiAdminHealthRouteImport.update({
+  id: '/api/admin/health',
+  path: '/api/admin/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminAnalyticsRoute = ApiAdminAnalyticsRouteImport.update({
+  id: '/api/admin/analytics',
+  path: '/api/admin/analytics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +66,8 @@ export interface FileRoutesByFullPath {
   '/live': typeof LiveRoute
   '/login': typeof LoginRoute
   '/scan': typeof ScanRoute
+  '/api/admin/analytics': typeof ApiAdminAnalyticsRoute
+  '/api/admin/health': typeof ApiAdminHealthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +76,8 @@ export interface FileRoutesByTo {
   '/live': typeof LiveRoute
   '/login': typeof LoginRoute
   '/scan': typeof ScanRoute
+  '/api/admin/analytics': typeof ApiAdminAnalyticsRoute
+  '/api/admin/health': typeof ApiAdminHealthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +87,40 @@ export interface FileRoutesById {
   '/live': typeof LiveRoute
   '/login': typeof LoginRoute
   '/scan': typeof ScanRoute
+  '/api/admin/analytics': typeof ApiAdminAnalyticsRoute
+  '/api/admin/health': typeof ApiAdminHealthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/insights' | '/live' | '/login' | '/scan'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/insights'
+    | '/live'
+    | '/login'
+    | '/scan'
+    | '/api/admin/analytics'
+    | '/api/admin/health'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/insights' | '/live' | '/login' | '/scan'
-  id: '__root__' | '/' | '/admin' | '/insights' | '/live' | '/login' | '/scan'
+  to:
+    | '/'
+    | '/admin'
+    | '/insights'
+    | '/live'
+    | '/login'
+    | '/scan'
+    | '/api/admin/analytics'
+    | '/api/admin/health'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/insights'
+    | '/live'
+    | '/login'
+    | '/scan'
+    | '/api/admin/analytics'
+    | '/api/admin/health'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +130,8 @@ export interface RootRouteChildren {
   LiveRoute: typeof LiveRoute
   LoginRoute: typeof LoginRoute
   ScanRoute: typeof ScanRoute
+  ApiAdminAnalyticsRoute: typeof ApiAdminAnalyticsRoute
+  ApiAdminHealthRoute: typeof ApiAdminHealthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -133,6 +178,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/health': {
+      id: '/api/admin/health'
+      path: '/api/admin/health'
+      fullPath: '/api/admin/health'
+      preLoaderRoute: typeof ApiAdminHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/analytics': {
+      id: '/api/admin/analytics'
+      path: '/api/admin/analytics'
+      fullPath: '/api/admin/analytics'
+      preLoaderRoute: typeof ApiAdminAnalyticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -143,7 +202,19 @@ const rootRouteChildren: RootRouteChildren = {
   LiveRoute: LiveRoute,
   LoginRoute: LoginRoute,
   ScanRoute: ScanRoute,
+  ApiAdminAnalyticsRoute: ApiAdminAnalyticsRoute,
+  ApiAdminHealthRoute: ApiAdminHealthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

@@ -2,6 +2,9 @@ import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { Leaf, LayoutGrid, QrCode, ShieldCheck, Sun, Moon, LogOut, LogIn, Radio, Sparkles, Crown } from "lucide-react";
 import { RoleSwitcher } from "./RoleSwitcher";
 import { DeviceSwitcher } from "./DeviceSwitcher";
+import { BackToDesktopButton } from "./BackToDesktopButton";
+import { useDevice } from "@/lib/device-context";
+import { WalletStatusBar } from "@/components/command-center/WalletStatusBar";
 import { PhantomButton } from "./PhantomButton";
 import { useTheme } from "@/lib/theme-context";
 import { useAuth } from "@/lib/auth-context";
@@ -16,28 +19,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
+const NAV = [
+  { to: "/", label: "Dashboard", labelId: "Pusat Kendali", Icon: LayoutGrid },
+  { to: "/live", label: "Live Map", labelId: "Peta Langsung", Icon: Radio },
+  { to: "/insights", label: "AI Insights", labelId: "Wawasan AI", Icon: Sparkles },
+  { to: "/scan", label: "Scan", labelId: "Pindai", Icon: QrCode },
+] as const;
+
 export function AppHeader() {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const { theme, toggle } = useTheme();
   const { user, logout } = useAuth();
+  const { device } = useDevice();
   const navigate = useNavigate();
-
-  const NavLink = ({ to, label, Icon }: { to: string; label: string; Icon: typeof Leaf }) => {
-    const active = path === to;
-    return (
-      <Link
-        to={to}
-        className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-          active
-            ? "bg-primary/10 text-primary"
-            : "text-muted-foreground hover:text-foreground hover:bg-accent"
-        }`}
-      >
-        <Icon className="h-4 w-4" />
-        <span className="hidden sm:inline">{label}</span>
-      </Link>
-    );
-  };
+  const isCC = ["/", "/live", "/insights", "/scan"].includes(path);
+  const isPreviewMode = device !== "desktop";
 
   const handleLogout = () => {
     logout();
@@ -46,48 +42,71 @@ export function AppHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4">
-        <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="relative grid h-9 w-9 place-items-center rounded-lg bg-gradient-primary shadow-glow transition-transform group-hover:scale-105">
-            <Leaf className="h-5 w-5 text-primary-foreground" />
+    <header className={`sticky top-0 z-50 w-full ${isCC ? "cc-header" : "border-b bg-background"}`}>
+      <div className="mx-auto flex h-[4.25rem] max-w-[90rem] items-center justify-between gap-3 px-4">
+        <Link to="/" className="group flex min-w-0 items-center gap-3">
+          <div className="cc-brand-glow relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-primary text-primary-foreground transition-transform group-hover:scale-105">
+            <Leaf className="h-5 w-5" />
           </div>
-          <div className="leading-tight">
-            <div className="text-sm font-bold tracking-tight">Global Food Ledger</div>
-            <div className="hidden text-[10px] font-medium uppercase tracking-wider text-muted-foreground sm:block">
-              <ShieldCheck className="mr-1 inline h-2.5 w-2.5 text-chain" />
-              Secured by Polygon
+          <div className="min-w-0 leading-tight">
+            <div className="truncate text-sm font-bold tracking-tight sm:text-base">Global Food Ledger</div>
+            <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <ShieldCheck className="h-2.5 w-2.5 shrink-0 text-cc-accent" />
+              <span className="truncate">Secured by Solana</span>
             </div>
           </div>
         </Link>
 
-        <nav className="flex items-center gap-1">
-          <NavLink to="/" label="Dashboard" Icon={LayoutGrid} />
-          <NavLink to="/live" label="Live Map" Icon={Radio} />
-          <NavLink to="/insights" label="AI Insights" Icon={Sparkles} />
-          <NavLink to="/scan" label="Scan" Icon={QrCode} />
-          {user?.isAdmin && <NavLink to="/admin" label="Admin" Icon={Crown} />}
+        <nav className="hidden items-center gap-0.5 md:flex">
+          {NAV.map(({ to, label, labelId, Icon }) => {
+            const active = path === to;
+            return (
+              <Link
+                key={to}
+                to={to}
+                className={`cc-nav-link flex flex-col items-center rounded-lg px-3 py-1.5 ${
+                  active ? "cc-nav-link--active" : "text-muted-foreground"
+                }`}
+              >
+                <span className="flex items-center gap-1.5 text-xs font-semibold">
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </span>
+                <span className="text-[9px] font-medium opacity-70">{labelId}</span>
+              </Link>
+            );
+          })}
+          {user?.isAdmin && (
+            <Link
+              to="/admin"
+              className={`cc-nav-link flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold ${
+                path === "/admin" ? "cc-nav-link--active" : "text-muted-foreground"
+              }`}
+            >
+              <Crown className="h-3.5 w-3.5" /> Admin
+            </Link>
+          )}
         </nav>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
+          {isPreviewMode ? (
+            <BackToDesktopButton compact className="md:hidden" />
+          ) : null}
           <DeviceSwitcher />
-          <PhantomButton />
+          {isPreviewMode ? (
+            <BackToDesktopButton className="hidden md:flex" />
+          ) : null}
+          {isCC ? <WalletStatusBar /> : <PhantomButton />}
           {user && <RoleSwitcher />}
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggle}
-            aria-label="Toggle theme"
-            className="h-9 w-9"
-          >
+          <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme" className="h-9 w-9">
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
 
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="grid h-9 w-9 place-items-center rounded-full bg-gradient-primary text-xs font-bold text-primary-foreground shadow-glow transition-transform hover:scale-105">
+                <button className="cc-brand-glow grid h-9 w-9 place-items-center rounded-full bg-gradient-primary text-xs font-bold text-primary-foreground transition-transform hover:scale-105">
                   {user.avatar}
                 </button>
               </DropdownMenuTrigger>
@@ -114,6 +133,22 @@ export function AppHeader() {
           )}
         </div>
       </div>
+
+      {/* Mobile nav — horizontal swipe */}
+      <nav className="cc-mobile-nav-scroll flex gap-1 overflow-x-auto border-t border-white/5 px-2 py-1.5 md:hidden">
+        {NAV.map(({ to, label, Icon }) => (
+          <Link
+            key={to}
+            to={to}
+            className={`cc-nav-link flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium ${
+              path === to ? "cc-nav-link--active" : "text-muted-foreground"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </Link>
+        ))}
+      </nav>
     </header>
   );
 }

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { BATCHES, type Batch, type BatchStatus, type TimelineStep } from "./mock-data";
+import { mockSolanaSignature, shortenAddress } from "@/utils/solana";
 
 const STORAGE_KEY = "gfl.batches.v1";
 
@@ -20,6 +21,8 @@ type AddBatchInput = {
   region: string;
   country: string;
   farmer: string;
+  /** Alamat Phantom / Solana yang menandatangani genesis tx. */
+  signerWallet?: string;
 };
 
 type HandoverInput = {
@@ -75,8 +78,9 @@ export function BatchesProvider({ children }: { children: ReactNode }) {
   const addBatch: Ctx["addBatch"] = (input) => {
     const code = input.product.replace(/[^A-Z]/gi, "").slice(0, 5).toUpperCase() || "ITEM";
     const id = `${code}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const wallet = shortWallet();
-    const tx = txHash();
+    const onSolana = !!input.signerWallet;
+    const wallet = onSolana ? shortenAddress(input.signerWallet!, 6) : shortWallet();
+    const tx = onSolana ? mockSolanaSignature() : txHash();
     const stamp = nowStamp();
     const newBatch: Batch = {
       id,
@@ -124,7 +128,7 @@ export function BatchesProvider({ children }: { children: ReactNode }) {
           location: input.location,
           timestamp: stamp,
           txHash: txHash(),
-          wallet: input.wallet || shortWallet(),
+          wallet: input.wallet ? shortenAddress(input.wallet, 6) : shortWallet(),
         };
         outStatus = next;
         return {

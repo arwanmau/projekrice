@@ -2,8 +2,10 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { AppHeader } from "@/components/AppHeader";
+import { CommandCenterShell } from "@/components/command-center/CommandCenterShell";
 import { BATCHES } from "@/lib/mock-data";
 import { Sparkles, AlertTriangle, TrendingUp, Leaf, Zap, Bot, ShieldAlert, Gauge } from "lucide-react";
+import { MobileSwipeCarousel } from "@/components/MobileSwipeCarousel";
 
 export const Route = createFileRoute("/insights")({
   head: () => ({
@@ -89,7 +91,7 @@ function InsightsPage() {
   const onChainCoverage = 100;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
+    <CommandCenterShell>
       <AppHeader />
       <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:py-8">
         <div className="flex items-center gap-4 animate-fade-up">
@@ -123,14 +125,76 @@ function InsightsPage() {
         </div>
 
         {/* Score gauges */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="sm:hidden">
+          <MobileSwipeCarousel
+            slideBasis="88%"
+            slides={[
+              {
+                id: "risk",
+                label: "Risk Score",
+                children: (
+                  <Gauge3 label="Risk Score" value={riskScore} hint="lower = safer" Icon={Gauge} invert />
+                ),
+              },
+              {
+                id: "efficiency",
+                label: "Efficiency",
+                children: (
+                  <Gauge3 label="Efficiency" value={efficiency} hint="route + cost" Icon={Zap} />
+                ),
+              },
+              {
+                id: "coverage",
+                label: "On-chain Coverage",
+                children: (
+                  <Gauge3
+                    label="On-chain Coverage"
+                    value={onChainCoverage}
+                    hint="ledger sync"
+                    Icon={ShieldAlert}
+                  />
+                ),
+              },
+            ]}
+          />
+        </div>
+        <div className="hidden gap-4 sm:grid sm:grid-cols-3">
           <Gauge3 label="Risk Score" value={riskScore} hint="lower = safer" Icon={Gauge} invert />
           <Gauge3 label="Efficiency" value={efficiency} hint="route + cost" Icon={Zap} />
           <Gauge3 label="On-chain Coverage" value={onChainCoverage} hint="ledger sync" Icon={ShieldAlert} />
         </div>
 
         {/* Insight cards */}
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="sm:hidden">
+          <MobileSwipeCarousel
+            slideBasis="90%"
+            slides={INSIGHTS.map((it, i) => ({
+              id: it.title,
+              label: it.title,
+              children: (
+                <article
+                  className={`rounded-xl border p-4 shadow-sm transition hover:shadow-elegant animate-fade-up ${TONES[it.tone]}`}
+                  style={{ animationDelay: `${i * 80}ms` }}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-background/60">
+                      <it.Icon className="h-4 w-4" />
+                    </span>
+                    <div className="flex-1">
+                      <div className="text-sm font-bold tracking-tight text-foreground">{it.title}</div>
+                      <p className="mt-1 text-sm text-muted-foreground">{it.body}</p>
+                      <div className="mt-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                        AI confidence · {78 + i * 4}%
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ),
+            }))}
+          />
+        </section>
+        <section className="hidden gap-4 sm:grid lg:grid-cols-2">
           {INSIGHTS.map((it, i) => (
             <article
               key={it.title}
@@ -154,7 +218,7 @@ function InsightsPage() {
           ))}
         </section>
       </main>
-    </div>
+    </CommandCenterShell>
   );
 }
 

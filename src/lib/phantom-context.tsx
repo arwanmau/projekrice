@@ -1,96 +1,166 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
-
-type PhantomProvider = {
-  isPhantom?: boolean;
-  publicKey: { toString: () => string } | null;
-  isConnected: boolean;
-  connect: (opts?: { onlyIfTrusted?: boolean }) => Promise<{ publicKey: { toString: () => string } }>;
-  disconnect: () => Promise<void>;
-  on: (event: string, cb: (...args: unknown[]) => void) => void;
-  removeAllListeners?: () => void;
-};
-
-declare global {
-  interface Window {
-    solana?: PhantomProvider;
-    phantom?: { solana?: PhantomProvider };
-  }
-}
+import {
+  fetchSolBalance,
+  getPhantomProvider,
+  openPhantomInstall,
+  SOLANA_NETWORK,
+  type PhantomSolanaProvider,
+} from "@/utils/solana";
 
 type Ctx = {
   publicKey: string | null;
+  balance: number | null;
   connecting: boolean;
-  connect: () => Promise<void>;
+  connect: () => Promise<string | null>;
   disconnect: () => Promise<void>;
   installed: boolean;
+  network: typeof SOLANA_NETWORK;
 };
 
 const PhantomContext = createContext<Ctx | null>(null);
 
-function getProvider(): PhantomProvider | null {
-  if (typeof window === "undefined") return null;
-  const p = window.phantom?.solana ?? window.solana;
-  return p?.isPhantom ? p : null;
+async function refreshBalance(address: string | null, setBalance: (n: number | null) => void) {
+  if (!address) {
+    setBalance(null);
+    return;
+  }
+  setBalance(await fetchSolBalance(address));
+}
+
+function readConnectedKey(provider: PhantomSolanaProvider): string | null {
+  if (provider.isConnected && provider.publicKey) {
+    return provider.publicKey.toString();
+  }
+  return null;
 }
 
 export function PhantomProvider({ children }: { children: ReactNode }) {
   const [publicKey, setPublicKey] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [installed, setInstalled] = useState(false);
+  const providerRef = useRef<PhantomSolanaProvider | null>(null);
 
-  useEffect(() => {
-    const provider = getProvider();
-    if (!provider) return;
-    setInstalled(true);
-
-    // Try eager (trusted) connect
-    provider.connect({ onlyIfTrusted: true })
-      .then(({ publicKey }) => setPublicKey(publicKey.toString()))
-      .catch(() => {});
-
-    const onConnect = () => {
-      if (provider.publicKey) setPublicKey(provider.publicKey.toString());
-    };
-    const onDisconnect = () => setPublicKey(null);
-    const onAccountChanged = (...args: unknown[]) => {
-      const pk = args[0] as { toString: () => string } | null;
-      setPublicKey(pk ? pk.toString() : null);
-    };
-    provider.on("connect", onConnect);
-    provider.on("disconnect", onDisconnect);
-    provider.on("accountChanged", onAccountChanged);
+  const syncKey = useCallback((key: string | null) => {
+    setPublicKey(key);
+    void refreshBalance(key, setBalance);
   }, []);
 
-  const connect = useCallback(async () => {
-    const provider = getProvider();
+  const bindProvider = useCallback(
+    (provider: PhantomSolanaProvider) => {
+      if (providerRef.current === provider) return;
+      providerRef.current = provider;
+      setInstalled(true);
+
+      const existing = readConnectedKey(provider);
+      if (existing) syncKey(existing);
+
+      provider
+        .connect({ onlyIfTrusted: true })
+        .then(({ publicKey }) => syncKey(publicKey.toString()))
+        .catch(() => {});
+
+      const onConnect = () => {
+        const key = readConnectedKey(provider);
+        if (key) syncKey(key);
+      };
+      const onDisconnect = () => syncKey(null);
+      const onAccountChanged = (...args: unknown[]) => {
+        const pk = args[0] as { toString: () => string } | null;
+        syncKey(pk ? pk.toString() : null);
+      };
+
+      provider.on("connect", onConnect);
+      provider.on("disconnect", onDisconnect);
+      provider.on("accountChanged", onAccountChanged);
+    },
+    [syncKey]
+  );
+
+  useEffect(() => {
+    const tryBind = () => {
+      const provider = getPhantomProvider();
+      if (provider) bindProvider(provider);
+    };
+
+    tryBind();
+
+    const interval = window.setInterval(() => {
+      if (getPhantomProvider()) {
+        tryBind();
+        window.clearInterval(interval);
+      }
+    }, 200);
+
+    const stopPolling = window.setTimeout(() => window.clearInterval(interval), 10_000);
+    window.addEventListener("load", tryBind);
+
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(stopPolling);
+      window.removeEventListener("load", tryBind);
+      const p = providerRef.current;
+      p?.removeAllListeners?.("connect");
+      p?.removeAllListeners?.("disconnect");
+      p?.removeAllListeners?.("accountChanged");
+      providerRef.current = null;
+    };
+  }, [bindProvider]);
+
+  const connect = useCallback(async (): Promise<string | null> => {
+    const provider = getPhantomProvider() ?? providerRef.current;
     if (!provider) {
-      window.open("https://phantom.app/", "_blank", "noopener,noreferrer");
-      toast.error("Phantom belum terpasang", { description: "Install ekstensi Phantom lalu coba lagi." });
-      return;
+      openPhantomInstall();
+      toast.error("Phantom belum terdeteksi", {
+        description: "Pasang ekstensi Phantom, refresh halaman, lalu klik Connect lagi.",
+      });
+      return null;
     }
+    bindProvider(provider);
+
+    const existing = readConnectedKey(provider);
+    if (existing) {
+      syncKey(existing);
+      return existing;
+    }
+
     setConnecting(true);
     try {
-      const { publicKey } = await provider.connect();
-      setPublicKey(publicKey.toString());
-      toast.success("Phantom terhubung", { description: publicKey.toString().slice(0, 8) + "…" });
-    } catch (e) {
-      toast.error("Gagal menghubungkan Phantom");
+      const res = await provider.connect();
+      const addr = res.publicKey.toString();
+      syncKey(addr);
+      toast.success("Phantom terhubung", {
+        description: `${addr.slice(0, 4)}…${addr.slice(-4)} · ${SOLANA_NETWORK}`,
+      });
+      return addr;
+    } catch (err: unknown) {
+      const code = (err as { code?: number })?.code;
+      if (code === 4001) {
+        toast.info("Koneksi dibatalkan", { description: "Buka Phantom dan setujui permintaan Connect." });
+      } else {
+        toast.error("Gagal menghubungkan Phantom", {
+          description: "Pastikan ekstensi aktif dan situs ini diizinkan di Phantom.",
+        });
+      }
+      return null;
     } finally {
       setConnecting(false);
     }
-  }, []);
+  }, [bindProvider, syncKey]);
 
   const disconnect = useCallback(async () => {
-    const provider = getProvider();
+    const provider = getPhantomProvider() ?? providerRef.current;
     if (!provider) return;
     await provider.disconnect();
-    setPublicKey(null);
+    syncKey(null);
     toast.success("Phantom diputus");
-  }, []);
+  }, [syncKey]);
 
   return (
-    <PhantomContext.Provider value={{ publicKey, connecting, connect, disconnect, installed }}>
+    <PhantomContext.Provider
+      value={{ publicKey, balance, connecting, connect, disconnect, installed, network: SOLANA_NETWORK }}
+    >
       {children}
     </PhantomContext.Provider>
   );

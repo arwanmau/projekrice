@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBatches } from "@/lib/batches-context";
+import { usePhantom } from "@/lib/phantom-context";
 import type { Batch } from "@/lib/mock-data";
 import { toast } from "sonner";
 
@@ -37,6 +38,7 @@ export function HandoverDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const { handover, nextStatusOf } = useBatches();
+  const { publicKey } = usePhantom();
   const [actor, setActor] = useState("");
   const [location, setLocation] = useState("");
   const [wallet, setWallet] = useState("");
@@ -53,10 +55,10 @@ export function HandoverDialog({
     if (open) {
       setActor("");
       setLocation("");
-      setWallet("");
+      setWallet(publicKey ?? "");
       setErrors({});
     }
-  }, [open]);
+  }, [open, publicKey]);
 
   if (!batch) return null;
   const next = nextStatusOf(batch.status);

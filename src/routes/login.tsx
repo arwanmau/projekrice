@@ -51,7 +51,7 @@ function LoginPage() {
         <div className="absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
 
         <Link to="/" className="relative flex items-center gap-2.5">
-          <div className="grid h-10 w-10 place-items-center rounded-lg bg-white/15 backdrop-blur">
+          <div className="grid h-10 w-10 place-items-center rounded-lg bg-white/20">
             <Leaf className="h-5 w-5" />
           </div>
           <div className="text-base font-bold tracking-tight">Global Food Ledger</div>
@@ -65,7 +65,7 @@ function LoginPage() {
             Lacak setiap batch pangan staple dengan transparansi penuh, jaminan smart contract,
             dan keamanan jaringan Polygon.
           </p>
-          <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold backdrop-blur">
+          <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-white/20 px-3 py-1.5 text-xs font-semibold">
             <ShieldCheck className="h-4 w-4" /> Secured by Polygon
           </div>
         </div>

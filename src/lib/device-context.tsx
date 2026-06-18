@@ -40,5 +40,5 @@ export function useDevice() {
 export const DEVICE_WIDTHS: Record<DeviceMode, string> = {
   desktop: "100%",
   tablet: "820px",
-  mobile: "390px",
+  mobile: "100%",
 };

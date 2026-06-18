@@ -66,7 +66,10 @@ export function CommandPalette() {
             <CommandItem onSelect={() => go("/insights")}><Sparkles className="mr-2 h-4 w-4" />AI Insights</CommandItem>
             <CommandItem onSelect={() => go("/scan")}><QrCode className="mr-2 h-4 w-4" />Scan QR</CommandItem>
             {user?.isAdmin && (
-              <CommandItem onSelect={() => go("/admin")}><Crown className="mr-2 h-4 w-4" />Admin Console</CommandItem>
+              <CommandItem onSelect={() => go("/admin")}>
+                <Crown className="mr-2 h-4 w-4" />
+                Admin Dashboard & Analytics
+              </CommandItem>
             )}
           </CommandGroup>
           <CommandSeparator />
