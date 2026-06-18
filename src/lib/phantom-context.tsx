@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { createContext, useContext, useEffect, useState, useCallback, useRef, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
@@ -163,11 +164,65 @@ export function PhantomProvider({ children }: { children: ReactNode }) {
     >
       {children}
     </PhantomContext.Provider>
+=======
+import { useMemo, type ReactNode } from "react";
+import { ConnectionProvider, WalletProvider, useWallet } from "@solana/wallet-adapter-react";
+import { WalletModalProvider, useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
+import { clusterApiUrl } from "@solana/web3.js";
+import { toast } from "sonner";
+
+import "@solana/wallet-adapter-react-ui/styles.css";
+
+export function PhantomProvider({ children }: { children: ReactNode }) {
+  const endpoint = useMemo(() => clusterApiUrl("devnet"), []);
+  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
+
+  return (
+    <ConnectionProvider endpoint={endpoint}>
+      <WalletProvider
+        wallets={wallets}
+        autoConnect
+        onError={(e) => toast.error(e.message || "Wallet error")}
+      >
+        <WalletModalProvider>{children}</WalletModalProvider>
+      </WalletProvider>
+    </ConnectionProvider>
+>>>>>>> cdbf9c0ecd14b8966af2767423bd9241d024d79f
   );
 }
 
+/**
+ * Backwards-compatible hook that mirrors the previous custom Phantom context API.
+ * Internally uses Solana Wallet Adapter.
+ */
 export function usePhantom() {
-  const ctx = useContext(PhantomContext);
-  if (!ctx) throw new Error("usePhantom must be used within PhantomProvider");
-  return ctx;
+  const wallet = useWallet();
+  const modal = useWalletModal();
+  const publicKey = wallet.publicKey ? wallet.publicKey.toString() : null;
+
+  return {
+    publicKey,
+    connecting: wallet.connecting,
+    installed: !!wallet.wallet,
+    connect: async () => {
+      if (!wallet.wallet) {
+        modal.setVisible(true);
+        return;
+      }
+      try {
+        await wallet.connect();
+      } catch {
+        toast.error("Gagal menghubungkan wallet");
+      }
+    },
+    disconnect: async () => {
+      try {
+        await wallet.disconnect();
+        toast.success("Wallet diputus");
+      } catch {
+        /* noop */
+      }
+    },
+  };
 }
